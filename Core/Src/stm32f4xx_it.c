@@ -41,6 +41,10 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
+extern UART_HandleTypeDef huart2;
+extern ADC_HandleTypeDef hadc1;
+extern uint8_t state;
+extern uint8_t prev_state;
 
 /* USER CODE END PV */
 
@@ -55,7 +59,7 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-
+extern TIM_HandleTypeDef htim6;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -197,6 +201,47 @@ void SysTick_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32f4xx.s).                    */
 /******************************************************************************/
+
+/**
+  * @brief This function handles TIM6 global interrupt and DAC1, DAC2 underrun error interrupts.
+  */
+void TIM6_DAC_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM6_DAC_IRQn 0 */
+  char message[40] = { 0 };
+
+  // Read from potentiometer
+  HAL_ADC_Start(&hadc1);
+  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+  uint16_t value = HAL_ADC_GetValue(&hadc1);
+
+  // Potentiometer is connected to a 3.3V source
+  // If value = 0 => measured voltage is 0V
+  // If value = 4096 => measured voltage is 3.3V
+  double voltage = SYSTEM_VOLTAGE_STEP * value;
+  if (state != STATE_DANGER && (voltage > SAFE_VOLTAGE_MAX || voltage < SAFE_VOLTAGE_MIN)) {
+    prev_state = state;
+    state = STATE_DANGER;
+
+    sprintf(message, "Move to DANGER - %f V\n", voltage);
+    HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
+  }else if (state == STATE_DANGER && (voltage < SAFE_VOLTAGE_MAX && voltage > SAFE_VOLTAGE_MIN)) {
+    state = prev_state;
+
+    sprintf(message, "Exit from DANGER - %f V\n", voltage);
+    HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
+  }
+
+  memset(message, 0, 40);
+  sprintf(message, "Voltage: %d\n", value);
+  HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
+
+  /* USER CODE END TIM6_DAC_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim6);
+  /* USER CODE BEGIN TIM6_DAC_IRQn 1 */
+
+  /* USER CODE END TIM6_DAC_IRQn 1 */
+}
 
 /* USER CODE BEGIN 1 */
 

@@ -37,7 +37,9 @@
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-
+#define SYSTEM_VOLTAGE_STEP (3.3 / 4096)
+#define SAFE_VOLTAGE_MIN 1.8
+#define SAFE_VOLTAGE_MAX 2.7
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
@@ -55,6 +57,7 @@ void SVC_Handler(void);
 void DebugMon_Handler(void);
 void PendSV_Handler(void);
 void SysTick_Handler(void);
+void TIM6_DAC_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */
