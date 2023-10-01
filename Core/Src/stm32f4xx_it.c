@@ -22,6 +22,8 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <string.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -222,24 +224,52 @@ void EXTI15_10_IRQHandler(void)
 void TIM6_DAC_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM6_DAC_IRQn 0 */
-  // Read from potentiometer
-  HAL_ADC_Start(&hadc1);
-  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-  uint16_t value = HAL_ADC_GetValue(&hadc1);
+  // If we are in WAITING state, do nothing
+  if (state != STATE_WAITING) {
+    // Read from potentiometer
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+    uint16_t value = HAL_ADC_GetValue(&hadc1);
 
-  // Potentiometer is connected to a 3.3V source
-  // If value = 0 => measured voltage is 0V
-  // If value = 4096 => measured voltage is 3.3V
-  double voltage = SYSTEM_VOLTAGE_STEP * value;
-  if (state != STATE_DANGER && (voltage > SAFE_VOLTAGE_MAX || voltage < SAFE_VOLTAGE_MIN)) {
-    prev_state = state;
-    state = STATE_DANGER;
+    // Potentiometer is connected to a 3.3V source
+    // If value = 0 => measured voltage is 0V
+    // If value = 4096 => measured voltage is 3.3V
+    double voltage = SYSTEM_VOLTAGE_STEP * value;
 
-    HAL_UART_Transmit(&huart2, "Move to DANGER\n", 15, HAL_MAX_DELAY);
-  }else if (state == STATE_DANGER && (voltage < SAFE_VOLTAGE_MAX && voltage > SAFE_VOLTAGE_MIN)) {
-    state = prev_state;
+    // Below minimum safe voltage?
+    char message[80] = { 0 };
+    if (voltage < SAFE_VOLTAGE_MIN) {
+      prev_state = state;
+      state = STATE_DANGER_UNDER;
 
-    HAL_UART_Transmit(&huart2, "Exit from DANGER\n", 17, HAL_MAX_DELAY);
+      sprintf(message, "State: DANGER - Under 1.8V - Measured %d - Time %ld\n", value, HAL_GetTick());
+      HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
+    }
+
+    // Over maximum safe voltage?
+    else if (voltage > SAFE_VOLTAGE_MAX) {
+      prev_state = state;
+      state = STATE_DANGER_OVER;
+
+      sprintf(message, "State: DANGER - Over 2.7V - Measured %d - Time %ld\n", value, HAL_GetTick());
+      HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
+    }
+
+    // Return in safe state?
+    else if (state != STATE_RUNNING && voltage >= SAFE_VOLTAGE_MIN && voltage <= SAFE_VOLTAGE_MAX) {
+      state = prev_state;
+
+      sprintf(message, "State: RUNNING - In range - Measured %d - Time %ld\n", value, HAL_GetTick());
+      HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
+    }
+
+    // No state changes
+    else {
+      sprintf(message, "Measured %d - Time %ld\n", value, HAL_GetTick());
+      HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
+    }
+
+    memset(message, 0, 80);
   }
 
   /* USER CODE END TIM6_DAC_IRQn 0 */

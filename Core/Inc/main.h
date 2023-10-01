@@ -41,9 +41,10 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-#define STATE_WAITING 0
-#define STATE_RUNNING 1
-#define STATE_DANGER 2
+#define STATE_WAITING       0
+#define STATE_RUNNING       1
+#define STATE_DANGER_OVER   2
+#define STATE_DANGER_UNDER  3
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
