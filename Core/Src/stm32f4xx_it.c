@@ -238,7 +238,7 @@ void TIM6_DAC_IRQHandler(void)
 
     // Below minimum safe voltage?
     char message[80] = { 0 };
-    if (voltage < SAFE_VOLTAGE_MIN) {
+    if (state != STATE_DANGER_UNDER && voltage < SAFE_VOLTAGE_MIN) {
       prev_state = state;
       state = STATE_DANGER_UNDER;
 
@@ -247,7 +247,7 @@ void TIM6_DAC_IRQHandler(void)
     }
 
     // Over maximum safe voltage?
-    else if (voltage > SAFE_VOLTAGE_MAX) {
+    else if (state != STATE_DANGER_OVER && voltage > SAFE_VOLTAGE_MAX) {
       prev_state = state;
       state = STATE_DANGER_OVER;
 
@@ -257,7 +257,7 @@ void TIM6_DAC_IRQHandler(void)
 
     // Return in safe state?
     else if (state != STATE_RUNNING && voltage >= SAFE_VOLTAGE_MIN && voltage <= SAFE_VOLTAGE_MAX) {
-      state = prev_state;
+      state = STATE_RUNNING;
 
       sprintf(message, "State: RUNNING - In range - Measured %d - Time %ld\n", value, HAL_GetTick());
       HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
