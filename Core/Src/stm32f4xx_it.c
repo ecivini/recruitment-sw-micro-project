@@ -208,8 +208,6 @@ void SysTick_Handler(void)
 void TIM6_DAC_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM6_DAC_IRQn 0 */
-  char message[40] = { 0 };
-
   // Read from potentiometer
   HAL_ADC_Start(&hadc1);
   HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
@@ -223,18 +221,12 @@ void TIM6_DAC_IRQHandler(void)
     prev_state = state;
     state = STATE_DANGER;
 
-    sprintf(message, "Move to DANGER - %f V\n", voltage);
-    HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
+    HAL_UART_Transmit(&huart2, "Move to DANGER\n", 15, HAL_MAX_DELAY);
   }else if (state == STATE_DANGER && (voltage < SAFE_VOLTAGE_MAX && voltage > SAFE_VOLTAGE_MIN)) {
     state = prev_state;
 
-    sprintf(message, "Exit from DANGER - %f V\n", voltage);
-    HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
+    HAL_UART_Transmit(&huart2, "Exit from DANGER\n", 17, HAL_MAX_DELAY);
   }
-
-  memset(message, 0, 40);
-  sprintf(message, "Voltage: %d\n", value);
-  HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
 
   /* USER CODE END TIM6_DAC_IRQn 0 */
   HAL_TIM_IRQHandler(&htim6);

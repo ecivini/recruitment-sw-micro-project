@@ -46,8 +46,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint8_t prev_state = STATE_WAITING;
-uint8_t state = STATE_WAITING;
+uint8_t prev_state = STATE_RUNNING;
+uint8_t state = STATE_RUNNING;
 
 /* USER CODE END PV */
 
