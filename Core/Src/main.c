@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "dma.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -48,6 +49,8 @@
 /* USER CODE BEGIN PV */
 uint8_t prev_state = STATE_RUNNING;
 uint8_t state = STATE_RUNNING;
+
+uint16_t adc_values[2];
 
 /* USER CODE END PV */
 
@@ -103,11 +106,13 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_ADC1_Init();
   MX_USART2_UART_Init();
   MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim6);
+  HAL_ADC_Start_DMA(&hadc1, adc_values, 2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -121,14 +126,6 @@ int main(void)
 
       HAL_UART_Transmit(&huart2, "Board in waiting state - please press the emergency button\n", 59, HAL_MAX_DELAY);
       HAL_Delay(500);
-    }
-
-    // RUNNING STATE
-    else if (state == STATE_RUNNING) {
-      // HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
-      // HAL_Delay(500);
-      // HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_RESET);
-      // HAL_Delay(500);
     }
 
     // UNDER VOLTAGE DANGER STATE
@@ -146,7 +143,6 @@ int main(void)
       HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_RESET);
       HAL_Delay(1000);
     } 
-
 
     /* USER CODE END WHILE */
 

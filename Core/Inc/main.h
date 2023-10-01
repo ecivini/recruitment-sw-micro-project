@@ -45,6 +45,9 @@ extern "C" {
 #define STATE_RUNNING       1
 #define STATE_DANGER_OVER   2
 #define STATE_DANGER_UNDER  3
+
+#define ADC_VOLTAGE_CHECKER 0
+#define ADC_SENSOR          1
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
@@ -65,6 +68,8 @@ void Error_Handler(void);
 #define emergencyButtonPin_EXTI_IRQn EXTI15_10_IRQn
 #define potentiometerPin_Pin GPIO_PIN_0
 #define potentiometerPin_GPIO_Port GPIOA
+#define sensorPin_Pin GPIO_PIN_1
+#define sensorPin_GPIO_Port GPIOA
 #define USART_TX_Pin GPIO_PIN_2
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3

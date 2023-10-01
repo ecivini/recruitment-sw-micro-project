@@ -48,6 +48,10 @@ extern ADC_HandleTypeDef hadc1;
 extern uint8_t state;
 extern uint8_t prev_state;
 
+extern uint16_t adc_values[2];
+
+uint64_t cycles; // 50ms cycles are used to call the right function in the timer handler
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -57,10 +61,70 @@ extern uint8_t prev_state;
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void check_sensor() {
+  // If we are in WAITING state, do nothing
+  if (state != STATE_WAITING) {
+    uint16_t value = adc_values[ADC_SENSOR];
+
+    // Print sensor value via UART
+    char message[80] = { 0 };
+    sprintf(message, "SENSOR - Measured %d - Time %ld\n", value, HAL_GetTick());
+    HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
+  }
+}
+
+void check_system_voltage() {
+  // If we are in WAITING state, do nothing
+  if (state != STATE_WAITING) {
+    // Read from potentiometer
+    uint16_t value = adc_values[ADC_VOLTAGE_CHECKER];
+
+    // Potentiometer is connected to a 3.3V source
+    // If value = 0 => measured voltage is 0V
+    // If value = 4096 => measured voltage is 3.3V
+    double voltage = SYSTEM_VOLTAGE_STEP * value;
+
+    // Below minimum safe voltage?
+    char message[80] = { 0 };
+    if (state != STATE_DANGER_UNDER && voltage < SAFE_VOLTAGE_MIN) {
+      prev_state = state;
+      state = STATE_DANGER_UNDER;
+
+      sprintf(message, "State: DANGER - Under 1.8V - Measured %d - Time %ld\n", value, HAL_GetTick());
+      HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
+    }
+
+    // Over maximum safe voltage?
+    else if (state != STATE_DANGER_OVER && voltage > SAFE_VOLTAGE_MAX) {
+      prev_state = state;
+      state = STATE_DANGER_OVER;
+
+      sprintf(message, "State: DANGER - Over 2.7V - Measured %d - Time %ld\n", value, HAL_GetTick());
+      HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
+    }
+
+    // Return in safe state?
+    else if (state != STATE_RUNNING && voltage >= SAFE_VOLTAGE_MIN && voltage <= SAFE_VOLTAGE_MAX) {
+      state = STATE_RUNNING;
+
+      sprintf(message, "State: RUNNING - In range - Measured %d - Time %ld\n", value, HAL_GetTick());
+      HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
+    }
+
+    // No state changes
+    else {
+      sprintf(message, "Measured %d - Time %ld\n", value, HAL_GetTick());
+      HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
+    }
+
+    memset(message, 0, 80);
+  }
+}
 
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern DMA_HandleTypeDef hdma_adc1;
 extern TIM_HandleTypeDef htim6;
 /* USER CODE BEGIN EV */
 
@@ -224,59 +288,35 @@ void EXTI15_10_IRQHandler(void)
 void TIM6_DAC_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM6_DAC_IRQn 0 */
-  // If we are in WAITING state, do nothing
-  if (state != STATE_WAITING) {
-    // Read from potentiometer
-    HAL_ADC_Start(&hadc1);
-    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-    uint16_t value = HAL_ADC_GetValue(&hadc1);
+  // check sensor value? 50ms * 4 = 200 ms
+  if (cycles % 4 == 0) {
+    check_sensor();
+  }
 
-    // Potentiometer is connected to a 3.3V source
-    // If value = 0 => measured voltage is 0V
-    // If value = 4096 => measured voltage is 3.3V
-    double voltage = SYSTEM_VOLTAGE_STEP * value;
-
-    // Below minimum safe voltage?
-    char message[80] = { 0 };
-    if (state != STATE_DANGER_UNDER && voltage < SAFE_VOLTAGE_MIN) {
-      prev_state = state;
-      state = STATE_DANGER_UNDER;
-
-      sprintf(message, "State: DANGER - Under 1.8V - Measured %d - Time %ld\n", value, HAL_GetTick());
-      HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
-    }
-
-    // Over maximum safe voltage?
-    else if (state != STATE_DANGER_OVER && voltage > SAFE_VOLTAGE_MAX) {
-      prev_state = state;
-      state = STATE_DANGER_OVER;
-
-      sprintf(message, "State: DANGER - Over 2.7V - Measured %d - Time %ld\n", value, HAL_GetTick());
-      HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
-    }
-
-    // Return in safe state?
-    else if (state != STATE_RUNNING && voltage >= SAFE_VOLTAGE_MIN && voltage <= SAFE_VOLTAGE_MAX) {
-      state = STATE_RUNNING;
-
-      sprintf(message, "State: RUNNING - In range - Measured %d - Time %ld\n", value, HAL_GetTick());
-      HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
-    }
-
-    // No state changes
-    else {
-      sprintf(message, "Measured %d - Time %ld\n", value, HAL_GetTick());
-      HAL_UART_Transmit(&huart2, message, strlen(message), HAL_MAX_DELAY);
-    }
-
-    memset(message, 0, 80);
+  // check system voltage? 50ms * 7 = 350 ms
+  if (cycles % 7 == 0) {
+    check_system_voltage();
   }
 
   /* USER CODE END TIM6_DAC_IRQn 0 */
   HAL_TIM_IRQHandler(&htim6);
   /* USER CODE BEGIN TIM6_DAC_IRQn 1 */
-
+  cycles += 1;
   /* USER CODE END TIM6_DAC_IRQn 1 */
+}
+
+/**
+  * @brief This function handles DMA2 stream0 global interrupt.
+  */
+void DMA2_Stream0_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA2_Stream0_IRQn 0 */
+
+  /* USER CODE END DMA2_Stream0_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_adc1);
+  /* USER CODE BEGIN DMA2_Stream0_IRQn 1 */
+
+  /* USER CODE END DMA2_Stream0_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */
